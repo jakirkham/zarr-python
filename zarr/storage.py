@@ -640,11 +640,7 @@ class DictStore(MutableMapping):
 
         elif isinstance(value, self.cls):
             # total size for directory
-            size = 0
-            for v in value.values():
-                if not isinstance(v, self.cls):
-                    size += buffer_size(v)
-            return size
+            return getsize(value)
 
         else:
             return buffer_size(value)
