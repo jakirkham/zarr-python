@@ -20,6 +20,7 @@ from collections import MutableMapping, OrderedDict
 import os
 import operator
 import tempfile
+import uuid
 import zipfile
 import shutil
 import atexit
@@ -2067,6 +2068,39 @@ class SQLiteStore(MutableMapping):
         )
         for s, in size:
             return s
+
+    def rename(self, src_path, dst_path):
+        src_path = normalize_storage_path(src_path)
+        dst_path = normalize_storage_path(dst_path)
+        tmp_table = "_{t}_{u}".format(t=self.table, u=uuid.uuid4().hex)
+
+        self.cursor.execute('BEGIN TRANSACTION')
+        self.cursor.execute(
+            '''
+            CREATE TEMPORARY TABLE {tmp_t} AS
+            SELECT LTRIM((? || "/" ||
+                           LTRIM(SUBSTR(k, LENGTH(?) + 1), "/")),
+                         "/"),
+                   v
+            FROM {t} WHERE k LIKE ? || "%"
+            '''.format(
+                tmp_t=tmp_table, t=self.table
+            ),
+            (dst_path, src_path, src_path)
+        )
+        self.cursor.execute(
+            'DELETE FROM {t} WHERE k LIKE ? || "%"'.format(t=self.table),
+            (src_path,)
+        )
+        self.cursor.execute(
+            '''
+            REPLACE INTO {t} SELECT * FROM {tmp_t}
+            '''.format(
+                tmp_t=tmp_table, t=self.table
+            )
+        )
+        self.cursor.execute('DROP TABLE {tmp_t}'.format(tmp_t=tmp_table))
+        self.cursor.execute('COMMIT TRANSACTION')
 
     def rmdir(self, path=None):
         path = normalize_storage_path(path)
