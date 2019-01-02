@@ -1936,12 +1936,9 @@ class SQLiteStore(MutableMapping):
         # handle keys as `str`s
         self.db.text_factory = str
 
-        # get a cursor to read/write to the database
-        self.cursor = self.db.cursor()
-
         # initialize database with our table if missing
         with self.db:
-            self.cursor.execute(
+            self.db.execute(
                 '''
                 CREATE TABLE IF NOT EXISTS {t}(k TEXT PRIMARY KEY, v BLOB)
                 '''.format(
@@ -1959,12 +1956,11 @@ class SQLiteStore(MutableMapping):
     def close(self):
         """Closes the underlying database."""
 
-        # close cursor and db objects
-        self.cursor.close()
+        # close db
         self.db.close()
 
     def __getitem__(self, key):
-        value = self.cursor.execute(
+        value = self.db.execute(
             'SELECT v FROM {t} WHERE k = ?'.format(t=self.table), (key,)
         )
         for v, in value:
@@ -1978,7 +1974,7 @@ class SQLiteStore(MutableMapping):
     def __delitem__(self, key):
         if key in self:
             with self.db:
-                self.cursor.execute(
+                self.db.execute(
                     'DELETE FROM {t} WHERE k = ?'.format(t=self.table), (key,)
                 )
         else:
@@ -1986,22 +1982,22 @@ class SQLiteStore(MutableMapping):
 
     def __contains__(self, key):
         op_has = 'SELECT COUNT(*) FROM {t} WHERE k = ?'.format(t=self.table)
-        for has, in self.cursor.execute(op_has, (key,)):
+        for has, in self.db.execute(op_has, (key,)):
             has = bool(has)
             return has
 
     def items(self):
-        kvs = self.cursor.execute('SELECT k, v FROM {t}'.format(t=self.table))
+        kvs = self.db.execute('SELECT k, v FROM {t}'.format(t=self.table))
         for k, v in kvs:
             yield k, v
 
     def keys(self):
-        ks = self.cursor.execute('SELECT k FROM {t}'.format(t=self.table))
+        ks = self.db.execute('SELECT k FROM {t}'.format(t=self.table))
         for k, in ks:
             yield k
 
     def values(self):
-        vs = self.cursor.execute('SELECT v FROM {t}'.format(t=self.table))
+        vs = self.db.execute('SELECT v FROM {t}'.format(t=self.table))
         for v, in vs:
             yield v
 
@@ -2009,7 +2005,7 @@ class SQLiteStore(MutableMapping):
         return self.keys()
 
     def __len__(self):
-        cs = self.cursor.execute(
+        cs = self.db.execute(
             'SELECT COUNT(*) FROM {t}'.format(t=self.table)
         )
         for c, in cs:
@@ -2034,13 +2030,13 @@ class SQLiteStore(MutableMapping):
                 kv_list.append((k, v))
 
         with self.db:
-            self.cursor.executemany(
+            self.db.executemany(
                 'REPLACE INTO {t} VALUES (?, ?)'.format(t=self.table), kv_list
             )
 
     def listdir(self, path=None):
         path = normalize_storage_path(path)
-        keys = self.cursor.execute(
+        keys = self.db.execute(
             '''
             SELECT DISTINCT SUBSTR(m, 0, INSTR(m, "/")) AS l FROM (
                 SELECT LTRIM(SUBSTR(k, LENGTH(?) + 1), "/") || "/" AS m
@@ -2056,7 +2052,7 @@ class SQLiteStore(MutableMapping):
 
     def getsize(self, path=None):
         path = normalize_storage_path(path)
-        size = self.cursor.execute(
+        size = self.db.execute(
             '''
             SELECT COALESCE(SUM(LENGTH(v)), 0) FROM {t}
             WHERE k LIKE ? || "%" AND
@@ -2074,7 +2070,7 @@ class SQLiteStore(MutableMapping):
         dst_path = normalize_storage_path(dst_path)
 
         with self.db:
-            self.cursor.executescript(
+            self.db.executescript(
                 '''
                 CREATE TEMPORARY TABLE _{t}_{u} AS
                 SELECT LTRIM(("{dp}" || "/" ||
@@ -2094,7 +2090,7 @@ class SQLiteStore(MutableMapping):
         path = normalize_storage_path(path)
         if path:
             with self.db:
-                self.cursor.execute(
+                self.db.execute(
                     '''
                     DELETE FROM {t} WHERE k LIKE ? || "_%"
                     '''.format(
@@ -2107,7 +2103,7 @@ class SQLiteStore(MutableMapping):
 
     def clear(self):
         with self.db:
-            self.cursor.executescript(
+            self.db.executescript(
                 '''
                 DROP TABLE {t};
                 CREATE TABLE {t}(k TEXT PRIMARY KEY, v BLOB);
