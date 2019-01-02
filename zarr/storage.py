@@ -1940,13 +1940,14 @@ class SQLiteStore(MutableMapping):
         self.cursor = self.db.cursor()
 
         # initialize database with our table if missing
-        self.cursor.execute(
-            '''
-            CREATE TABLE IF NOT EXISTS {t}(k TEXT PRIMARY KEY, v BLOB)
-            '''.format(
-                t=self.table
+        with self.db:
+            self.cursor.execute(
+                '''
+                CREATE TABLE IF NOT EXISTS {t}(k TEXT PRIMARY KEY, v BLOB)
+                '''.format(
+                    t=self.table
+                )
             )
-        )
 
     def __getstate__(self):
         return self.path, self.kwargs
@@ -1976,9 +1977,10 @@ class SQLiteStore(MutableMapping):
 
     def __delitem__(self, key):
         if key in self:
-            self.cursor.execute(
-                'DELETE FROM {t} WHERE k = ?'.format(t=self.table), (key,)
-            )
+            with self.db:
+                self.cursor.execute(
+                    'DELETE FROM {t} WHERE k = ?'.format(t=self.table), (key,)
+                )
         else:
             raise KeyError(key)
 
@@ -2031,9 +2033,10 @@ class SQLiteStore(MutableMapping):
                 # Accumulate key-value pairs for storage
                 kv_list.append((k, v))
 
-        self.cursor.executemany(
-            'REPLACE INTO {t} VALUES (?, ?)'.format(t=self.table), kv_list
-        )
+        with self.db:
+            self.cursor.executemany(
+                'REPLACE INTO {t} VALUES (?, ?)'.format(t=self.table), kv_list
+            )
 
     def listdir(self, path=None):
         path = normalize_storage_path(path)
@@ -2070,9 +2073,9 @@ class SQLiteStore(MutableMapping):
         src_path = normalize_storage_path(src_path)
         dst_path = normalize_storage_path(dst_path)
 
-        self.cursor.executescript(
-            '''
-            BEGIN TRANSACTION;
+        with self.db:
+            self.cursor.executescript(
+                '''
                 CREATE TEMPORARY TABLE _{t}_{u} AS
                 SELECT LTRIM(("{dp}" || "/" ||
                                LTRIM(SUBSTR(k, LENGTH("{sp}") + 1), "/")),
@@ -2082,37 +2085,36 @@ class SQLiteStore(MutableMapping):
                 DELETE FROM {t} WHERE k LIKE "{sp}%";
                 REPLACE INTO {t} SELECT * FROM _{t}_{u};
                 DROP TABLE _{t}_{u};
-            COMMIT TRANSACTION;
-            '''.format(
-                t=self.table, u=uuid.uuid4().hex, sp=src_path, dp=dst_path
+                '''.format(
+                    t=self.table, u=uuid.uuid4().hex, sp=src_path, dp=dst_path
+                )
             )
-        )
 
     def rmdir(self, path=None):
         path = normalize_storage_path(path)
         if path:
-            self.cursor.execute(
-                '''
-                DELETE FROM {t} WHERE k LIKE ? || "_%"
-                '''.format(
-                    t=self.table
-                ),
-                (path,)
-            )
+            with self.db:
+                self.cursor.execute(
+                    '''
+                    DELETE FROM {t} WHERE k LIKE ? || "_%"
+                    '''.format(
+                        t=self.table
+                    ),
+                    (path,)
+                )
         else:
             self.clear()
 
     def clear(self):
-        self.cursor.executescript(
-            '''
-            BEGIN TRANSACTION;
+        with self.db:
+            self.cursor.executescript(
+                '''
                 DROP TABLE {t};
                 CREATE TABLE {t}(k TEXT PRIMARY KEY, v BLOB);
-            COMMIT TRANSACTION;
-            '''.format(
-                t=self.table
+                '''.format(
+                    t=self.table
+                )
             )
-        )
 
 
 class ConsolidatedMetadataStore(MutableMapping):
