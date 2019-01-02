@@ -2093,11 +2093,11 @@ class SQLiteStore(MutableMapping):
         if path:
             self.cursor.execute(
                 '''
-                DELETE FROM {t} WHERE k LIKE ? || "_%"
+                DELETE FROM {t} WHERE k LIKE ?
                 '''.format(
                     t=self.table
                 ),
-                (path,)
+                (path + "_%",)
             )
         else:
             self.clear()
