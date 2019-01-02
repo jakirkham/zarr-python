@@ -1928,7 +1928,7 @@ class SQLiteStore(MutableMapping):
         self.db = sqlite3.connect(
             self.path,
             detect_types=0,
-            isolation_level=None,
+            isolation_level='',
             check_same_thread=False,
             **self.kwargs
         )
