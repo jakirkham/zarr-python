@@ -18,6 +18,7 @@ path) and a `getsize` method (return the size in bytes of a given value).
 from __future__ import absolute_import, print_function, division
 from collections import MutableMapping, OrderedDict
 import os
+import stat
 import operator
 import tempfile
 import zipfile
@@ -844,9 +845,10 @@ class DirectoryStore(MutableMapping):
         fs_path = self.path
         if store_path:
             fs_path = os.path.join(fs_path, store_path)
-        if os.path.isfile(fs_path):
-            return os.path.getsize(fs_path)
-        elif os.path.isdir(fs_path):
+        fs_stat = os.stat(fs_path)
+        if stat.S_ISREG(fs_stat.st_mode):
+            return fs_stat.st_size
+        elif stat.S_ISDIR(fs_stat.st_mode):
             children = os.listdir(fs_path)
             size = 0
             for child in children:
