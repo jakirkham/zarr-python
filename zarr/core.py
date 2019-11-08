@@ -6,6 +6,7 @@ import operator
 import re
 from functools import reduce
 
+import cupy as cp
 import numpy as np
 from numcodecs.compat import ensure_bytes, ensure_ndarray
 
@@ -1015,7 +1016,7 @@ class Array(object):
 
         # setup output array
         if out is None:
-            out = np.empty(out_shape, dtype=out_dtype, order=self._order)
+            out = cp.empty(out_shape, dtype=out_dtype, order=self._order)
         else:
             check_array_shape('out', out, out_shape)
 
@@ -1473,7 +1474,7 @@ class Array(object):
 
         except KeyError:
             # chunk not initialized
-            chunk = np.zeros((), dtype=self._dtype)
+            chunk = cp.zeros((), dtype=self._dtype)
             if self._fill_value is not None:
                 chunk.fill(self._fill_value)
 
