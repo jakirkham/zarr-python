@@ -665,6 +665,134 @@ class MemoryStore(MutableMapping):
             self.root.clear()
 
 
+class GPUMemoryStore(MemoryStore):
+    """Store class that uses a hierarchy of :class:`dict` objects, thus all data
+    will be held in device memory.
+
+    Examples
+    --------
+    This is the default class used when creating a group. E.g.::
+
+        >>> import zarr
+        >>> g = zarr.group()
+        >>> type(g.store)
+        <class 'zarr.storage.GPUMemoryStore'>
+
+    Note that the default class when creating an array is the built-in
+    :class:`dict` class, i.e.::
+
+        >>> z = zarr.zeros(100)
+        >>> type(z.store)
+        <class 'dict'>
+
+    Notes
+    -----
+    Safe to write in multiple threads.
+
+    """
+
+    def __getitem__(self, item):
+        value = super(GPUMemoryStore, self).__getitem__(self, item)
+        value = value.copy()
+        return value
+
+    def __setitem__(self, item, value):
+        value = ensure_contiguous_ndarray(value).ravel("A").view("u1")
+        super(GPUMemoryStore, self).__setitem__(self, item, value.copy())
+
+    def __delitem__(self, item):
+        super(GPUMemoryStore, self).__delitem__(self, item)
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, MemoryStore) and
+            self.root == other.root and
+            self.cls == other.cls
+        )
+
+    def keys(self):
+        for k in _dict_store_keys(self.root, cls=self.cls):
+            yield k
+
+    def __iter__(self):
+        return self.keys()
+
+    def __len__(self):
+        return sum(1 for _ in self.keys())
+
+    def listdir(self, path=None):
+        path = normalize_storage_path(path)
+        if path:
+            try:
+                parent, key = self._get_parent(path)
+                value = parent[key]
+            except KeyError:
+                return []
+        else:
+            value = self.root
+        if isinstance(value, self.cls):
+            return sorted(value.keys())
+        else:
+            return []
+
+    def rename(self, src_path, dst_path):
+        src_path = normalize_storage_path(src_path)
+        dst_path = normalize_storage_path(dst_path)
+
+        src_parent, src_key = self._get_parent(src_path)
+        dst_parent, dst_key = self._require_parent(dst_path)
+
+        dst_parent[dst_key] = src_parent.pop(src_key)
+
+    def rmdir(self, path=None):
+        path = normalize_storage_path(path)
+        if path:
+            try:
+                parent, key = self._get_parent(path)
+                value = parent[key]
+            except KeyError:
+                return
+            else:
+                if isinstance(value, self.cls):
+                    del parent[key]
+        else:
+            # clear out root
+            self.root = self.cls()
+
+    def getsize(self, path=None):
+        path = normalize_storage_path(path)
+
+        # obtain value to return size of
+        value = None
+        if path:
+            try:
+                parent, key = self._get_parent(path)
+                value = parent[key]
+            except KeyError:
+                pass
+        else:
+            value = self.root
+
+        # obtain size of value
+        if value is None:
+            return 0
+
+        elif isinstance(value, self.cls):
+            # total size for directory
+            size = 0
+            for v in value.values():
+                if not isinstance(v, self.cls):
+                    size += buffer_size(v)
+            return size
+
+        else:
+            return buffer_size(value)
+
+    def clear(self):
+        with self.write_mutex:
+            self.root.clear()
+
+
 class DictStore(MemoryStore):
 
     def __init__(self, *args, **kwargs):
