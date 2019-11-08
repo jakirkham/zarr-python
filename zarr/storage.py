@@ -34,6 +34,9 @@ from pickle import PicklingError
 from threading import Lock, RLock
 import uuid
 
+import numpy as np
+import cupy as cp
+
 from numcodecs.compat import ensure_bytes, ensure_contiguous_ndarray
 from numcodecs.registry import codec_registry
 
@@ -2449,3 +2452,30 @@ class ConsolidatedMetadataStore(MutableMapping):
 
     def listdir(self, path):
         return listdir(self.meta_store, path)
+
+
+class CuPyStore(DictStore):
+    """Storage class for CuPy.
+
+    Notes
+    -----
+
+    This is an experimental feature.
+
+    """
+
+    def __getitem__(self, key):
+        value = super(CuPyStore, self).__getitem__(key)
+        value = ensure_contiguous_ndarray(value)
+        if (key.endswith(group_meta_key) or
+            key.endswith(array_meta_key) or
+            key.endswith(attrs_key)):
+            return value
+        else:
+            return cp.asarray(value)
+
+    def __setitem__(self, key, value):
+        if isinstance(value, cp.ndarray):
+            value = value.get()
+        value = ensure_contiguous_ndarray(value)
+        super(CuPyStore, self).__setitem__(key, value)
