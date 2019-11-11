@@ -52,7 +52,7 @@ class Array(object):
         If True (default), user attributes will be cached for attribute read
         operations. If False, user attributes are reloaded from the store prior
         to all attribute read operations.
-    meta : array, optional
+    meta_array : array, optional
         An array instance to use for determining arrays to create and return
         to users.
 
@@ -108,7 +108,7 @@ class Array(object):
 
     def __init__(self, store, path=None, read_only=False, chunk_store=None,
                  synchronizer=None, cache_metadata=True, cache_attrs=True,
-                 meta=None):
+                 meta_array=None):
         # N.B., expect at this point store is fully initialized with all
         # configuration metadata fully specified and normalized
 
@@ -119,8 +119,8 @@ class Array(object):
             self._key_prefix = self._path + '/'
         else:
             self._key_prefix = ''
-        if meta:
-            self._meta_array = np.empty_like(meta)
+        if meta_array:
+            self._meta_array = np.empty_like(meta_array)
         else:
             self._meta_array = np.empty(())
         self._read_only = bool(read_only)
@@ -720,7 +720,7 @@ class Array(object):
 
         except KeyError:
             # chunk not initialized
-            chunk = np.zeros_like(self._meta, shape=(), dtype=self._dtype)
+            chunk = np.zeros_like(self._meta_array, shape=(), dtype=self._dtype)
             if self._fill_value is not None:
                 chunk.fill(self._fill_value)
 
