@@ -100,7 +100,7 @@ class Group(MutableMapping):
             self._key_prefix = ''
         self._read_only = read_only
         self._synchronizer = synchronizer
-        if meta_array:
+        if meta_array is not None:
             self._meta_array = np.empty_like(meta_array)
         else:
             self._meta_array = np.empty(())

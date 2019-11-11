@@ -119,7 +119,7 @@ class Array(object):
             self._key_prefix = self._path + '/'
         else:
             self._key_prefix = ''
-        if meta_array:
+        if meta_array is not None:
             self._meta_array = np.empty_like(meta_array)
         else:
             self._meta_array = np.empty(())
