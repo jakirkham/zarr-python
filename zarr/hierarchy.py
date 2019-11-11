@@ -39,7 +39,7 @@ class Group(MutableMapping):
         to all attribute read operations.
     synchronizer : object, optional
         Array synchronizer.
-    meta : array, optional
+    meta_array : array, optional
         An array to base allocations off of.
 
     Attributes
