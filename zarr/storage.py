@@ -100,6 +100,29 @@ def contains_group(store, path=None):
     return key in store
 
 
+def getitems(store, paths):
+    """Get all keys specified and return them"""
+    paths = map(normalize_storage_path, paths)
+    if hasattr(store, "getitems"):
+        # pass through
+        return store.getitems(paths)
+    else:
+        # slow version, get one key at a time
+        for p in paths:
+            yield store[p]
+
+
+def detitems(store, paths):
+    """Delete all keys specified and return them"""
+    paths = map(normalize_storage_path, paths)
+    if hasattr(store, "detitems"):
+        # pass through
+        store.delitems(paths)
+    else:
+        # slow version, get one key at a time
+        operator.itemgetter(*paths)(store)
+
+
 def _rmdir_from_keys(store, path=None):
     # assume path already normalized
     prefix = _path_to_prefix(path)
