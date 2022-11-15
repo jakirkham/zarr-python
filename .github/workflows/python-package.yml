@@ -50,16 +50,14 @@ jobs:
     - name: Create Conda environment with the rights deps
       shell: "bash -l {0}"
       run: |
-        conda create -n zarr-env python==${{matrix.python-version}} bsddb3 numcodecs lmdb pip nodejs flake8 mypy
+        conda create -n zarr-env python==${{matrix.python-version}} numpy${{matrix.numpy_version}} bsddb3 numcodecs lmdb pymongo redis-py pip setuptools wheel nodejs flake8 mypy codecov
         conda activate zarr-env
         npm install -g azurite
     - name: Install dependencies
       shell: "bash -l {0}"
       run: |
         conda activate zarr-env
-        python -m pip install --upgrade pip
-        python -m pip install -U pip setuptools wheel codecov
-        python -m pip install -rrequirements_dev_minimal.txt numpy${{matrix.numpy_version}} -rrequirements_dev_optional.txt pymongo redis
+        python -m pip install -rrequirements_dev_minimal.txt -rrequirements_dev_optional.txt
         python -m pip install .
         python -m pip freeze
     - name: Tests
